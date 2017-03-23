@@ -15,7 +15,7 @@ public class Main extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         controller = new Controller(this);
-        controller.defaultInitial(R.layout.list_items);
+        controller.defaultInitial();
         controller.scanController();
     }
 

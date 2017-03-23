@@ -12,7 +12,10 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -27,24 +30,40 @@ import static android.content.ContentValues.TAG;
 
 public class BleManager {
     private Handler handler;
-    private Activity activity;
+    private AppCompatActivity activity;
     private boolean isScanning;
     private DeviceManager manager;
     private ScanCallback mLeScanCallbackA;
     private BluetoothAdapter bluetoothAdapter;
     private static final long SCAN_PERIOD = 10000;
     private BluetoothAdapter.LeScanCallback mLeScanCallbackB;
-    private ListDevicesView listdevices;
+    private ListDevicesView defaule_listview;
 
     public static final int REQUEST_ENABLE_BT = 1;
 
     //Constructor
-    public BleManager(Activity activity, DeviceManager deviceManager,ListDevicesView listdevices) {
+    public BleManager(Context context, DeviceManager deviceManager,int layout) {
         this.manager = deviceManager;
         this.handler = new Handler();
-        this.activity = activity;
-        this.listdevices = listdevices;
+        this.activity = (AppCompatActivity) context;
 
+        setView(deviceManager,layout);
+        initial();
+    }
+
+    private void setView(DeviceManager deviceManager, int layout) {
+        if(layout!= 0)
+        {
+            defaule_listview = new ListDevicesView(activity, layout, deviceManager.getDevices());
+            ListView listView = new ListView(activity);
+            listView.setAdapter(defaule_listview);
+            ((ScrollView)  activity.findViewById(R.id.scrollview)).addView(listView);
+        }else{
+            defaule_listview = null;
+        }
+    }
+
+    private void initial() {
         // Check support available
         if (!activity.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
             Toast.makeText(activity, "BLE Not Supported", Toast.LENGTH_SHORT).show();
@@ -55,8 +74,6 @@ public class BleManager {
         BluetoothManager bluetoothManager =
                 (BluetoothManager) this.activity.getSystemService(Context.BLUETOOTH_SERVICE);
         bluetoothAdapter = bluetoothManager.getAdapter();
-
-
     }
 
     //Separate Android version (Before and after API 21)
@@ -66,9 +83,7 @@ public class BleManager {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             bluetoothAdapter.getBluetoothLeScanner().startScan(mLeScanCallbackA);
         } else {
-
             bluetoothAdapter.startLeScan(mLeScanCallbackB);
-            Log.d(TAG,"test***");
         }
     }
 
@@ -89,18 +104,14 @@ public class BleManager {
             handler.post(new Runnable() {
                 @Override
                 public void run() {
-                    Log.d(TAG,"Scan Le Device stop");
                     isScanning = false;
                     separateStopScan();
-
-
                 }
             });
             isScanning = true;
             separateStartScan();
         } else {
             isScanning = false;
-            Log.d(TAG,"Scan Le Device stop");
             separateStopScan();
         }
     }
@@ -130,10 +141,12 @@ public class BleManager {
                             @Override
                             public void run() {
                                 manager.addNewDevice(device, new_rssi);
-                                Log.d(TAG,"New device found");
-                                listdevices.notifyDataSetChanged();
+                                print();
+                                if(defaule_listview !=  null)
+                                    defaule_listview.notifyDataSetChanged();
                             }
                         });
+
                     }
                 };
         }
@@ -143,16 +156,22 @@ public class BleManager {
 
     public void startScan() {
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            Log.d(TAG,"scanLeDevice(false)");
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             activity.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
             scanLeDevice(false);
         }
         else {
-            Log.d(TAG,"scanLeDevice(true)");
             scanLeDevice(true);
-
         }
+    }
+
+    public void print()
+    {
+        ArrayList<Bluetooth_Device> deviceslist = manager.getDevices();
+        for(Bluetooth_Device device : deviceslist) {
+            System.out.println("************* " + device.getName());
+        }
+
     }
 
     public void stopScan() {
